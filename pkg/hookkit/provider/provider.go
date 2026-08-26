@@ -91,6 +91,12 @@ func firstString(fields map[string]any, names ...string) string {
 }
 
 func encode(input hookkit.Input, result hookkit.Result) ([]byte, error) {
+	if result.Decision == "" && result.Continue == nil && result.Reason == "" &&
+		result.AdditionalContext == "" && result.SystemMessage == "" &&
+		result.UpdatedInput == nil && !result.SuppressOutput {
+		return nil, nil
+	}
+
 	output := make(map[string]any)
 	if result.Continue != nil {
 		output["continue"] = *result.Continue

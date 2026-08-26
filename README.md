@@ -1,122 +1,74 @@
 # agent-hook-kit
 
-一个用 Go 编写、同时适配 Claude Code 和 Codex 的 Hook Runner。
+一个用 Go 编写、同时适配 Claude Code 和 Codex 的 provider-neutral Hook Runner 基础库。
 
-它解决的核心问题是把三件事拆开：
+这个仓库只负责通用基础设施：
 
-1. provider adapter 负责 stdin JSON、事件名和 stdout JSON 的协议差异；
-2. `hookkit.Rule` 只实现一条与项目无关的业务规则；
-3. 项目根目录的 `.agent-hook-kit.json` 只选择当前项目启用哪些规则。
+- provider adapter：解析 Claude Code/Codex 的 stdin，并编码 hook stdout；
+- `hookkit.Input`、`hookkit.Result` 等跨 provider 类型；
+- `Registry`、项目配置发现和按项目选择规则的 `Runner`；
+- `app.Run`：把 stdin、配置、Runner 和 stdout 串起来。
 
-因此，同一个二进制可以被多个项目复用，而项目 A 和项目 B 只需要各自维护自己的规则选择，不需要在规则代码里写路径判断，也不需要在 Claude/Codex 配置中逐条复制规则。
+基础库不内置任何业务规则，也不包含 Multica、Git、安全策略或某个具体项目的代码。业务项目应在自己的仓库里定义规则、注册规则，并通过 `.agent-hook-kit.json` 选择当前项目要启用的规则。
 
-## 当前 MVP
+## 快速使用
 
-```bash
-go build ./cmd/agent-hook-kit
-./agent-hook-kit list-rules
-```
-
-内置示例规则：
-
-- `safety/no-dangerous-shell`：拦截一组明显危险的 Bash 命令；
-- `context/prompt`：在 `UserPromptSubmit` 注入项目配置里的额外上下文；
-- `git/clean-worktree-on-stop`：在 `Stop` 时发现工作区有变更就请求继续收尾。
-
-没有找到项目配置时，runner 不执行任何规则并静默放行。这是有意设计：避免“注册进二进制的所有规则默认对所有项目生效”。
-
-## 项目配置
-
-在每个项目根目录放置 `.agent-hook-kit.json`：
-
-```json
-{
-  "rules": [
-    "safety/no-dangerous-shell",
-    {
-      "id": "context/prompt",
-      "options": {
-        "additional_context": "本项目修改后必须运行 go test ./...。"
-      }
-    }
-  ]
-}
-```
-
-Runner 会从 hook 输入里的 `cwd` 开始向上查找配置，所以不依赖任何人的绝对目录。也支持 `.agent-hook-kit/config.json`。
-
-## Claude Code 配置
-
-在 Claude Code 的 hook 配置中只配置一个统一入口：
-
-```json
-{
-  "hooks": {
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "agent-hook-kit run --provider claude"
-          }
-        ]
-      }
-    ],
-    "UserPromptSubmit": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "agent-hook-kit run --provider claude"
-          }
-        ]
-      }
-    ]
-  }
-}
-```
-
-## Codex 配置
-
-Codex 使用同一个 runner，只替换 provider：
-
-```json
-{
-  "hooks": {
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "agent-hook-kit run --provider codex"
-          }
-        ]
-      }
-    ]
-  }
-}
-```
-
-`PreToolUse`、`PermissionRequest`、`PostToolUse` 等事件也使用同一个入口；规则通过 `Events()` 声明自己关心的事件。
-
-## 编写自己的规则
-
-规则作者不需要知道谁调用它，也不需要写项目分流：
+业务项目定义并注册自己的规则：
 
 ```go
 registry := hookkit.NewRegistry().Register(hookkit.FuncRule{
     RuleID:     "quality/require-tests",
     RuleEvents: []hookkit.Event{hookkit.EventStop},
     Fn: func(ctx context.Context, in hookkit.Input) (hookkit.Result, error) {
-        // 这里只写规则本身；in.CWD 是宿主传入的当前项目目录。
+        // 这里只实现一条规则，不判断项目名称或绝对路径。
         return hookkit.Allow(), nil
     },
 })
-runner := hookkit.NewRunner(registry)
+
+err := app.Run(ctx, registry, "claude", os.Stdin, os.Stdout, app.Options{})
 ```
 
-把这个规则编译进你的 runner 后，各项目只在 `.agent-hook-kit.json` 中填写 `quality/require-tests` 即可。
+项目根目录的 `.agent-hook-kit.json` 只负责选择规则：
 
-## 设计边界
+```json
+{
+  "rules": ["quality/require-tests"]
+}
+```
 
-当前版本先统一最重要的 stdin/stdout、事件归一化、规则注册、项目配置查找和结果合并。Codex 与 Claude 的更细粒度 matcher、超时、异步 hook、配置安装命令将在协议适配稳定后继续补齐。
+Runner 从 hook 输入中的 `cwd` 开始向上查找配置，也支持 `.agent-hook-kit/config.json`。没有配置时不会执行任何已注册规则，并静默放行。
+
+## 可执行入口
+
+仓库中的 `cmd/agent-hook-kit` 是一个不带业务规则的通用 smoke-test 入口：
+
+```bash
+go run ./cmd/agent-hook-kit run --provider claude
+go run ./cmd/agent-hook-kit run --provider codex
+```
+
+实际业务应用通常应提供自己的 `main`，注册自己的规则后再调用 `app.Run`。Claude Code 和 Codex 的配置都只需要指向这个业务应用的统一入口；具体项目通过 `.agent-hook-kit.json` 选择规则。
+
+## 编写规则
+
+规则实现只依赖 provider-neutral 的 `hookkit.Input` 和 `hookkit.Result`：
+
+```go
+type RequireTests struct{}
+
+func (RequireTests) ID() string { return "quality/require-tests" }
+
+func (RequireTests) Events() []hookkit.Event {
+    return []hookkit.Event{hookkit.EventStop}
+}
+
+func (RequireTests) Run(ctx context.Context, in hookkit.Input) (hookkit.Result, error) {
+    return hookkit.Allow(), nil
+}
+```
+
+配置是执行策略，注册是可用规则集合。只有同时满足“规则已注册”和“规则 ID 出现在项目配置中”时，规则才会执行。
+
+## 当前边界
+
+当前版本统一 stdin/stdout、事件归一化、规则注册、项目配置查找和结果合并。更细粒度的 provider matcher、超时、异步 hook 以及安装命令，会在协议适配稳定后继续补齐。
