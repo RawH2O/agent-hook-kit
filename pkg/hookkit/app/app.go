@@ -4,12 +4,36 @@ package app
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"io"
 
 	"github.com/RawH2O/agent-hook-kit/pkg/hookkit"
 	"github.com/RawH2O/agent-hook-kit/pkg/hookkit/provider"
 )
+
+func mainWithArgs(args []string, rules []hookkit.Rule, stdin io.Reader, stdout io.Writer) error {
+	flags := flag.NewFlagSet("agent-hook", flag.ContinueOnError)
+	flags.SetOutput(io.Discard)
+	providerName := flags.String("provider", "", "host provider: claude or codex")
+	configPath := flags.String("config", "", "explicit project config path")
+	cwd := flags.String("cwd", "", "working directory override")
+	if err := flags.Parse(args); err != nil {
+		return err
+	}
+	if *providerName == "" {
+		return fmt.Errorf("--provider is required")
+	}
+
+	registry := hookkit.NewRegistry()
+	for _, rule := range rules {
+		registry.Register(rule)
+	}
+	return Run(context.Background(), registry, *providerName, stdin, stdout, Options{
+		ConfigPath: *configPath,
+		CWD:        *cwd,
+	})
+}
 
 // Options controls config discovery and the normalized working directory.
 type Options struct {

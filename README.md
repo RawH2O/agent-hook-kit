@@ -13,19 +13,17 @@
 
 ## 快速使用
 
-业务项目定义并注册自己的规则：
+业务项目只需要写业务 handler，再用一行声明规则：
 
 ```go
-registry := hookkit.NewRegistry().Register(hookkit.FuncRule{
-    RuleID:     "quality/require-tests",
-    RuleEvents: []hookkit.Event{hookkit.EventStop},
-    Fn: func(ctx context.Context, in hookkit.Input) (hookkit.Result, error) {
-        // 这里只实现一条规则，不判断项目名称或绝对路径。
-        return hookkit.Allow(), nil
-    },
-})
+func check(input app.Input) app.Result {
+    // 这里只实现一条规则，不判断项目名称或绝对路径。
+    return app.Allow()
+}
 
-err := app.Run(ctx, registry, "claude", os.Stdin, os.Stdout, app.Options{})
+func main() {
+    app.Main(app.Rule("quality/require-tests", check, app.Stop))
+}
 ```
 
 项目根目录的 `.agent-hook-kit.json` 只负责选择规则：
@@ -43,31 +41,23 @@ Runner 从 hook 输入中的 `cwd` 开始向上查找配置，也支持 `.agent-
 仓库中的 `cmd/agent-hook-kit` 是一个不带业务规则的通用 smoke-test 入口：
 
 ```bash
-go run ./cmd/agent-hook-kit run --provider claude
-go run ./cmd/agent-hook-kit run --provider codex
+go run ./cmd/agent-hook-kit --provider claude
+go run ./cmd/agent-hook-kit --provider codex
 ```
 
-实际业务应用通常应提供自己的 `main`，注册自己的规则后再调用 `app.Run`。Claude Code 和 Codex 的配置都只需要指向这个业务应用的统一入口；具体项目通过 `.agent-hook-kit.json` 选择规则。
+实际业务应用通常只需要调用 `app.Main`。它会自动处理参数、规则注册、配置发现、stdin/stdout 和错误退出；Claude Code 和 Codex 的配置都只需要指向这个业务应用的统一入口。
 
 ## 编写规则
 
 规则实现只依赖 provider-neutral 的 `hookkit.Input` 和 `hookkit.Result`：
 
 ```go
-type RequireTests struct{}
-
-func (RequireTests) ID() string { return "quality/require-tests" }
-
-func (RequireTests) Events() []hookkit.Event {
-    return []hookkit.Event{hookkit.EventStop}
-}
-
-func (RequireTests) Run(ctx context.Context, in hookkit.Input) (hookkit.Result, error) {
-    return hookkit.Allow(), nil
+func requireTests(input app.Input) app.Result {
+    return app.Allow()
 }
 ```
 
-配置是执行策略，注册是可用规则集合。只有同时满足“规则已注册”和“规则 ID 出现在项目配置中”时，规则才会执行。
+`app.Rule` 会把 handler 自动包装成规则。需要 context 或 error 传播时才使用 `app.RuleE`；需要自定义 I/O 或配置时才直接使用底层 `app.Run`。配置是执行策略，注册是可用规则集合，只有同时满足“规则已注册”和“规则 ID 出现在项目配置中”时，规则才会执行。
 
 ## 当前边界
 
