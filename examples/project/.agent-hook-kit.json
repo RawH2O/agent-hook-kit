@@ -1,0 +1,12 @@
+{
+  "rules": [
+    "safety/no-dangerous-shell",
+    "git/clean-worktree-on-stop",
+    {
+      "id": "context/prompt",
+      "options": {
+        "additional_context": "本项目使用 Go；修改后请运行 go test ./...。"
+      }
+    }
+  ]
+}

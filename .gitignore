@@ -1,0 +1,9 @@
+# Multica runtime metadata is injected into task workdirs and is not part of
+# the project repository.
+.agent_context/
+.multica/
+AGENTS.md
+
+# Local build artifacts.
+agent-hook-kit
+*.test
