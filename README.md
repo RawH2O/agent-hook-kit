@@ -20,6 +20,7 @@ go build ./cmd/agent-hook-kit
 内置示例规则：
 
 - `safety/no-dangerous-shell`：拦截一组明显危险的 Bash 命令；
+- `multica/comment-mention-required`：要求 `multica issue comment add` 的评论包含 agent、人类或 squad mention；
 - `context/prompt`：在 `UserPromptSubmit` 注入项目配置里的额外上下文；
 - `git/clean-worktree-on-stop`：在 `Stop` 时发现工作区有变更就请求继续收尾。
 

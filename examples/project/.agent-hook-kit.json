@@ -1,6 +1,7 @@
 {
   "rules": [
     "safety/no-dangerous-shell",
+    "multica/comment-mention-required",
     "git/clean-worktree-on-stop",
     {
       "id": "context/prompt",

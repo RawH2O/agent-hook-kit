@@ -70,6 +70,20 @@ func TestCodexEncodePreToolDenial(t *testing.T) {
 	}
 }
 
+func TestProviderEncodeAllowIsSilent(t *testing.T) {
+	adapter, err := New("codex")
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, err := adapter.Encode(hookkit.Input{Event: hookkit.EventPreToolUse}, hookkit.Allow())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(data) != 0 {
+		t.Fatalf("encoded allow result = %s, want empty output", data)
+	}
+}
+
 func contains(value, part string) bool {
 	for i := 0; i+len(part) <= len(value); i++ {
 		if value[i:i+len(part)] == part {

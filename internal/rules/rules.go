@@ -15,6 +15,7 @@ func RegisterBuiltins(registry *hookkit.Registry) {
 	registry.Register(DangerousShell{})
 	registry.Register(PromptContext{})
 	registry.Register(CleanWorktreeOnStop{})
+	registry.Register(CommentMentionRequired{})
 }
 
 type DangerousShell struct{}
