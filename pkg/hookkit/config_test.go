@@ -14,7 +14,7 @@ func TestDiscoverConfigWalksUpAndSupportsStringSelections(t *testing.T) {
 	}
 	configPath := filepath.Join(root, ConfigFileName)
 	if err := os.WriteFile(configPath, []byte(`{
-  "rules": ["safety/no-dangerous-shell", {"id":"context/prompt", "options":{"additional_context":"notes"}}]
+  "rules": ["test/first", {"id":"test/second", "options":{"note":"notes"}}]
 }`), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -29,10 +29,10 @@ func TestDiscoverConfigWalksUpAndSupportsStringSelections(t *testing.T) {
 	if len(config.Rules) != 2 {
 		t.Fatalf("got %d rules, want 2", len(config.Rules))
 	}
-	if config.Rules[0].ID != "safety/no-dangerous-shell" {
+	if config.Rules[0].ID != "test/first" {
 		t.Fatalf("got first rule %q", config.Rules[0].ID)
 	}
-	if got := config.Rules[1].Options["additional_context"]; got != "notes" {
+	if got := config.Rules[1].Options["note"]; got != "notes" {
 		t.Fatalf("got option %v, want notes", got)
 	}
 }
