@@ -47,6 +47,21 @@ go run ./cmd/agent-hook-kit --provider codex
 
 实际业务应用通常只需要调用 `app.Main`。它会自动处理参数、规则注册、配置发现、stdin/stdout 和错误退出；Claude Code 和 Codex 的配置都只需要指向这个业务应用的统一入口。
 
+平台或 GitOps 层如果已经有独立的 Hook 元数据，也可以直接生成 Codex 配置，不需要导入业务规则：
+
+```go
+data, err := app.GenerateHookDefinitions([]app.HookDefinition{
+    {
+        Name: "require-mention",
+        Command: "multica-comment-mention-required --provider codex",
+        Events: []app.Event{app.PreToolUse},
+        Matcher: "Bash",
+    },
+}, "Managed by Multica")
+```
+
+这里的 `HookDefinition` 就是 YAML 清单到 `hooks.json` 的中间层；项目名、项目绝对路径和业务规则代码都不进入基础库。
+
 ## 编写规则
 
 规则实现只依赖 provider-neutral 的 `hookkit.Input` 和 `hookkit.Result`：
