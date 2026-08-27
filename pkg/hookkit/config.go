@@ -13,8 +13,10 @@ const (
 	NestedConfigFileName = ".agent-hook-kit/config.json"
 )
 
-// Config is deliberately project-local. A project chooses rules by ID, while
-// rule implementation remains completely unaware of the project path/name.
+// Config is deliberately project-local. A project can choose rules by ID,
+// while rule implementation remains completely unaware of the project
+// path/name. A nil Rules slice means "run every registered rule". An explicit
+// empty rules array means "run none".
 type Config struct {
 	Rules   []RuleSelection `json:"rules"`
 	OnError string          `json:"on_error,omitempty"`
@@ -63,9 +65,10 @@ func LoadConfig(path string) (Config, error) {
 	return config, nil
 }
 
-// DiscoverConfig walks upward from start. No config is a valid configuration
-// with zero selected rules; this prevents every compiled rule from running in
-// every project by accident.
+// DiscoverConfig walks upward from start. No config is a valid configuration:
+// Runner will execute every registered rule when no selection is present.
+// Projects that need an allow-list can add .agent-hook-kit.json or
+// .agent-hook-kit/config.json with an explicit rules array.
 func DiscoverConfig(start string) (Config, string, error) {
 	if start == "" {
 		var err error

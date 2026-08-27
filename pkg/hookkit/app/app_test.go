@@ -45,7 +45,7 @@ func TestRunLoadsProjectSelectionAndUsesRegisteredRule(t *testing.T) {
 	}
 }
 
-func TestRunWithoutProjectConfigIsSilent(t *testing.T) {
+func TestRunWithoutProjectConfigExecutesRegisteredRule(t *testing.T) {
 	registry := hookkit.NewRegistry().Register(hookkit.FuncRule{
 		RuleID:     "test/deny",
 		RuleEvents: []hookkit.Event{hookkit.EventPreToolUse},
@@ -59,7 +59,7 @@ func TestRunWithoutProjectConfigIsSilent(t *testing.T) {
 	if err := Run(context.Background(), registry, "codex", bytes.NewReader(input), &output, Options{}); err != nil {
 		t.Fatal(err)
 	}
-	if output.Len() != 0 {
-		t.Fatalf("unexpected output without config: %q", output.String())
+	if output.Len() == 0 {
+		t.Fatal("expected the registered rule to run without a project config")
 	}
 }

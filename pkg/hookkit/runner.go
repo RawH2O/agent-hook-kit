@@ -8,8 +8,10 @@ import (
 	"strings"
 )
 
-// Runner executes only the selections in Config. Registration is the set of
-// available rules; configuration is the per-project execution policy.
+// Runner executes the selections in Config. When Config.Rules is nil, all
+// registered rules are executed. An explicit empty Rules slice disables all
+// rules for that invocation. Registration is the set of available rules;
+// configuration is the optional per-project execution policy.
 type Runner struct {
 	Registry *Registry
 }
@@ -26,8 +28,16 @@ func (r *Runner) Run(ctx context.Context, input Input, config Config) (Result, e
 		return Result{}, err
 	}
 
+	selections := config.Rules
+	if selections == nil {
+		selections = make([]RuleSelection, 0, len(r.Registry.IDs()))
+		for _, id := range r.Registry.IDs() {
+			selections = append(selections, RuleSelection{ID: id})
+		}
+	}
+
 	var combined Result
-	for index, selection := range config.Rules {
+	for index, selection := range selections {
 		rule, ok := r.Registry.Get(selection.ID)
 		if !ok {
 			return Result{}, fmt.Errorf("config rule %q is not registered", selection.ID)

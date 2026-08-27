@@ -34,7 +34,7 @@ func main() {
 }
 ```
 
-Runner 从 hook 输入中的 `cwd` 开始向上查找配置，也支持 `.agent-hook-kit/config.json`。没有配置时不会执行任何已注册规则，并静默放行。
+Runner 从 hook 输入中的 `cwd` 开始向上查找配置，也支持 `.agent-hook-kit/config.json`。没有配置时默认执行所有已注册且匹配当前事件的规则；如果项目需要裁剪规则，再写配置文件。显式的 `"rules": []` 表示该项目禁用全部规则。
 
 ## 可执行入口
 
@@ -57,7 +57,7 @@ func requireTests(input app.Input) app.Result {
 }
 ```
 
-`app.Rule` 会把 handler 自动包装成规则。需要 context 或 error 传播时才使用 `app.RuleE`；需要自定义 I/O 或配置时才直接使用底层 `app.Run`。配置是执行策略，注册是可用规则集合，只有同时满足“规则已注册”和“规则 ID 出现在项目配置中”时，规则才会执行。
+`app.Rule` 会把 handler 自动包装成规则。需要 context 或 error 传播时才使用 `app.RuleE`；需要自定义 I/O 或配置时才直接使用底层 `app.Run`。注册是可用规则集合；配置是可选的裁剪策略。没有配置时，已注册且匹配当前事件的规则全部执行；配置存在时，只有其中列出的规则执行。
 
 ## 当前边界
 

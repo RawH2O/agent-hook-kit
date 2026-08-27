@@ -13,6 +13,10 @@ import (
 )
 
 func mainWithArgs(args []string, rules []hookkit.Rule, stdin io.Reader, stdout io.Writer) error {
+	if len(args) > 0 && (args[0] == "generate" || args[0] == "install") {
+		return runHooksCommand(args[0], args[1:], rules, stdout)
+	}
+
 	flags := flag.NewFlagSet("agent-hook", flag.ContinueOnError)
 	flags.SetOutput(io.Discard)
 	providerName := flags.String("provider", "", "host provider: claude or codex")
